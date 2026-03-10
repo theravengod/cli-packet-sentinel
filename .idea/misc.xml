@@ -11,7 +11,4 @@
       </profile-state>
     </entry>
   </component>
-  <component name="RustProjectSettings">
-    <option name="toolchainHomeDirectory" value="/usr/bin" />
-  </component>
 </project>
