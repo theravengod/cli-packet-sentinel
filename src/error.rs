@@ -13,20 +13,20 @@ impl Display for SentinelError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let text = match self {
             SentinelError::Io(ioe) => {
-                format!("I/O Error: {}", ioe.to_string())
+                format!("I/O Error: {ioe}")
             }
             SentinelError::InvalidPcap(ipe) => {
-                format!("Invalid PCAP: {}", ipe.to_string())
+                format!("Invalid PCAP: {ipe}")
             }
             SentinelError::UnsupportedProtocol(upe) => {
-                format!("Unsupported Protocol: {}", upe.to_string())
+                format!("Unsupported Protocol: {upe}")
             }
             SentinelError::ParseError { layer, reason } => {
-                format!("Parse error @ layer {} : {}", layer, reason)
+                format!("Parse error @ layer {layer} : {reason}")
             }
         };
 
-        write!(f, "{}", text)
+        write!(f, "{text}")
     }
 }
 

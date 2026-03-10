@@ -1,13 +1,12 @@
 use crate::runcfg::RunCfg;
-use clap::{arg, Arg, Command};
+use clap::{Arg, Command, arg};
 use colored::Colorize;
 
 pub(crate) fn init() {
     let cmd = Command::new("s").args(generate_args());
-    let matches = cmd.try_get_matches()
-        .unwrap_or_else(|e| e.exit());
+    let matches = cmd.try_get_matches().unwrap_or_else(|e| e.exit());
 
-    let cfg = RunCfg::from_params(matches);
+    let cfg = RunCfg::from_params(&matches);
     exec(&cfg)
 }
 
@@ -16,7 +15,7 @@ fn generate_args() -> Vec<Arg> {
         arg!(-i --input <PCAP_FILE> "(required) path to a pcap file").required(true),
         arg!(-o --output <JSON_FILE> "(optional) — path to write the report").required(false),
         arg!(-f --filter <protocol> "(optional) — e.g., tcp, udp, icmp").required(false),
-        arg!(-v --verbose)
+        arg!(-v - -verbose),
     ]
 }
 
