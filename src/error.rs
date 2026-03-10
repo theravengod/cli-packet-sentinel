@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum SentinelError {
     Io(std::io::Error),

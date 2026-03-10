@@ -1,11 +1,10 @@
-mod parser;
 mod analysis;
-mod report;
 mod cli;
 mod error;
+mod parser;
+mod report;
 mod runcfg;
 
 fn main() {
     cli::init()
 }
-
