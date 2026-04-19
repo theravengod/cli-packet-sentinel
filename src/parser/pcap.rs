@@ -17,18 +17,17 @@ impl PcapHeader {
             _ => None,
         };
 
-        if magic.is_some() {
-            Ok(PcapHeader {
-                byte_order: magic.unwrap(),
+        match magic {
+            Some(byte_order) => Ok(PcapHeader {
+                byte_order,
                 version_major: u16::from_le_bytes(buffer[4..6].try_into().unwrap()),
                 version_minor: u16::from_le_bytes(buffer[6..8].try_into().unwrap()),
                 snap_len: u32::from_le_bytes(buffer[16..20].try_into().unwrap()),
                 network: u32::from_le_bytes(buffer[20..24].try_into().unwrap()),
-            })
-        } else {
-            Err(SentinelError::InvalidPcap(
+            }),
+            None => Err(SentinelError::InvalidPcap(
                 "Missing or corrupt magic number".to_string(),
-            ))
+            )),
         }
     }
 }
@@ -53,6 +52,42 @@ pub struct PcapReader<R: Read> {
 impl<R: Read> Read for PcapReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.reader.read(buf)
+    }
+}
+
+impl<R: Read> Iterator for PcapReader<R> {
+    type Item = Result<RawPacket, SentinelError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut buffer = [0; 16];
+        match self.reader.read(&mut buffer) {
+            Ok(0) => return None,
+            Err(e) => {
+                return Some(Err(SentinelError::ParseError {
+                    layer: "iterator".to_string(),
+                    reason: e.to_string(),
+                }));
+            }
+            Ok(_) => {}
+        }
+
+        // incl_len hold the exact amount read
+        let incl_len = u32::from_le_bytes(buffer[8..12].try_into().unwrap()) as usize;
+        let orig_len = u32::from_le_bytes(buffer[12..16].try_into().unwrap());
+
+        let mut data = vec![0u8; incl_len]; // size of incl_len
+        if let Err(e) = self.reader.read_exact(&mut data) {
+            return Some(Err(SentinelError::ParseError {
+                layer: "iterator".to_string(),
+                reason: e.to_string(),
+            }));
+        }
+
+        Some(Ok(RawPacket {
+            timestamp: u32::from_le_bytes(buffer[0..4].try_into().unwrap()),
+            orig_len,
+            data,
+        }))
     }
 }
 
