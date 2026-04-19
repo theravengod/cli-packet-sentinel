@@ -1,6 +1,9 @@
+use crate::parser::pcap::PcapReader;
 use crate::runcfg::RunCfg;
 use clap::{Arg, Command, arg};
 use colored::Colorize;
+use std::fs::File;
+use std::io::BufReader;
 
 pub(crate) fn init() {
     let cmd = Command::new("s").args(generate_args());
@@ -28,5 +31,19 @@ fn exec(cfg: &RunCfg) {
         }
     }
 
-    // TODO: just do the work here
+    let f = File::open(cfg.input_file.clone()).unwrap();
+    let reader = BufReader::new(f);
+    let result = PcapReader::new(reader);
+
+    if result.is_err() {
+        eprintln!(
+            "Error reading file {} ! Reason: {}",
+            cfg.input_file,
+            result.err().unwrap()
+        )
+    } else {
+        println!("Reading file {} ...", cfg.input_file);
+        let parsed_data = result.unwrap();
+        println!("Found: magic={:?}", parsed_data.header.byte_order)
+    }
 }
