@@ -8,8 +8,13 @@ set -eu
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
-BOLD=$(tput bold)
-NORM=$(tput sgr0)
+if [ -t 1 ] && [ -n "$TERM" ] && [ "$TERM" != "dumb" ]; then
+    BOLD=$(tput bold)
+    NORM=$(tput sgr0)
+else
+    BOLD=''
+    NORM=''
+fi
 
 echo "Running pre-commit checks..."
 
