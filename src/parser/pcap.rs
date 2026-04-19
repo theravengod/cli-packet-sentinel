@@ -23,7 +23,7 @@ impl PcapHeader {
                 version_major: u16::from_le_bytes(buffer[4..6].try_into().unwrap()),
                 version_minor: u16::from_le_bytes(buffer[6..8].try_into().unwrap()),
                 snap_len: u32::from_le_bytes(buffer[16..20].try_into().unwrap()),
-                network: u32::from_le_bytes(buffer[22..24].try_into().unwrap()),
+                network: u32::from_le_bytes(buffer[20..24].try_into().unwrap()),
             })
         } else {
             Err(SentinelError::InvalidPcap(
@@ -39,6 +39,7 @@ pub struct RawPacket {
     pub data: Vec<u8>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum ByteOrder {
     Native,
     Swapped,
@@ -56,18 +57,68 @@ impl<R: Read> Read for PcapReader<R> {
 }
 
 impl<R: Read> PcapReader<R> {
-    fn new(mut reader: R) -> Result<Self, SentinelError> {
-        let mut h_buffer = [0; 24];
-        let h_read_result = reader.read(&mut h_buffer);
+    pub fn new(mut reader: R) -> Result<Self, SentinelError> {
+        let mut buffer = [0; 24];
+        let read_result = reader.read(&mut buffer);
 
-        match h_read_result {
+        match read_result {
             Ok(_) => Ok(PcapReader {
                 reader,
-                header: PcapHeader::from_raw(&mut h_buffer)?,
+                header: PcapHeader::from_raw(&mut buffer)?,
             }),
             Err(_) => Err(SentinelError::InvalidPcap(
                 "Could not read header".to_string(),
             )),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds a minimal 24-byte pcap global header.
+    ///
+    /// Pcap global header layout (all fields little-endian):
+    ///   0..4   magic number
+    ///   4..6   version major
+    ///   6..8   version minor
+    ///   8..12  reserved1
+    ///   12..16 reserved2
+    ///   16..20 snap_len
+    ///   20..24 link-layer type (network)
+    fn make_header(magic: u32) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(24);
+        buf.extend_from_slice(&magic.to_le_bytes()); // magic
+        buf.extend_from_slice(&2u16.to_le_bytes()); // version_major
+        buf.extend_from_slice(&4u16.to_le_bytes()); // version_minor
+        buf.extend_from_slice(&0u32.to_le_bytes()); // reserved1
+        buf.extend_from_slice(&0u32.to_le_bytes()); // reserved2
+        buf.extend_from_slice(&65535u32.to_le_bytes()); // snap_len
+        buf.extend_from_slice(&1u32.to_le_bytes()); // network (LINKTYPE_ETHERNET)
+        buf
+    }
+
+    #[test]
+    fn reads_native_magic_number() {
+        let data = make_header(0xA1B2C3D4);
+        let reader = PcapReader::new(data.as_slice()).expect("should parse valid pcap header");
+        assert_eq!(reader.header.byte_order, ByteOrder::Native);
+    }
+
+    #[test]
+    fn reads_swapped_magic_number() {
+        let data = make_header(0xD4C3B2A1);
+        let reader = PcapReader::new(data.as_slice()).expect("should parse valid pcap header");
+        assert_eq!(reader.header.byte_order, ByteOrder::Swapped);
+    }
+
+    #[test]
+    fn rejects_invalid_magic_number() {
+        let data = make_header(0xDEADBEEF);
+        match PcapReader::new(data.as_slice()) {
+            Err(SentinelError::InvalidPcap(_)) => {}
+            _ => panic!("expected InvalidPcap error for bad magic number"),
         }
     }
 }
