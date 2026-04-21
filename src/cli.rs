@@ -31,19 +31,42 @@ fn exec(cfg: &RunCfg) {
         }
     }
 
-    let f = File::open(cfg.input_file.clone()).unwrap();
-    let reader = BufReader::new(f);
-    let result = PcapReader::new(reader);
+    read_pcap_file(&cfg.input_file)
+}
 
-    if result.is_err() {
-        eprintln!(
-            "Error reading file {} ! Reason: {}",
-            cfg.input_file,
-            result.err().unwrap()
-        )
-    } else {
-        println!("Reading file {} ...", cfg.input_file);
-        let parsed_data = result.unwrap();
-        println!("Found: magic={:?}", parsed_data.header.byte_order)
+fn read_pcap_file(input: &String) {
+    match File::open(input) {
+        Ok(f) => {
+            let reader = BufReader::new(f);
+            match PcapReader::new(reader) {
+                Ok(reader) => {
+                    println!("Analysing the PCAP file ...");
+                    println!();
+                    if reader.header.network != 1 {
+                        eprintln!("[!] This tool only supports Ethernet PCAP files");
+                        return;
+                    }
+                    print!(
+                        "[-] Type (byte order): {}",
+                        format!("{:?}", reader.header.byte_order).bright_blue()
+                    );
+                }
+                Err(e) => {
+                    eprintln!(
+                        "{}: Parsing PCAP file failed ! Reason: {}",
+                        "Error".red(),
+                        e
+                    )
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "{}: Can't open file {} ! Reason: {}",
+                "Error".red(),
+                input.red(),
+                e
+            )
+        }
     }
 }
